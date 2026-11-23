@@ -1,0 +1,229 @@
+---
+name: session-start
+description: |
+  Runs the session startup procedure - verifies setup, loads config and state,
+  checks skill models, and reports project status. Use at the beginning of a
+  fresh session.
+triggers:
+  - "session start"
+  - "session-start"
+od:
+  mode: design-system
+  category: audio-music
+  upstream: "https://github.com/bitwize-music-studio/claude-ai-music-skills/tree/HEAD/skills/session-start"
+  license: "CC0-1.0"
+---
+> Vendored from [bitwize-music-studio/claude-ai-music-skills](https://github.com/bitwize-music-studio/claude-ai-music-skills/tree/HEAD/skills/session-start) under CC0-1.0. Only the frontmatter was normalized for OpenDesign; the instructions below are upstream's.
+
+## Your Task
+
+Run the full session start procedure and report project status to the user.
+
+---
+
+# Session Start Skill
+
+You perform the 8-step session startup procedure that initializes a working session.
+
+---
+
+## Step 1: Verify Setup
+
+Quick dependency check:
+
+```bash
+~/.bitwize-music/venv/bin/python3 -c "import mcp.server.mcpserver" 2>/dev/null || ~/.bitwize-music/venv/bin/python3 -c "import mcp.server.fastmcp" 2>/dev/null && echo "MCP ready" || echo "MCP unusable"        # macOS/Linux/WSL
+~/.bitwize-music/venv/Scripts/python.exe -c "import mcp.server.mcpserver" 2>/dev/null || ~/.bitwize-music/venv/Scripts/python.exe -c "import mcp.server.fastmcp" 2>/dev/null && echo "MCP ready" || echo "MCP unusable" # Windows (Git Bash; cmd/PowerShell: %USERPROFILE%\.bitwize-music\venv\Scripts\python.exe)
+```
+
+- If MCP unusable: **Stop immediately** and suggest: `/bitwize-music:setup mcp` (the SDK is missing or predates 1.28.1). Probe both server modules, never bare `import mcp`: 2.x serves `MCPServer` from `mcp.server.mcpserver` and 1.x serves `FastMCP` from `mcp.server.fastmcp`, and the server accepts either — but a bare `import mcp` succeeds even when neither module is present, reporting healthy on an install the server cannot boot on
+- If config missing (`~/.bitwize-music/config.yaml` doesn't exist): suggest `/bitwize-music:configure`
+- Don't proceed until setup is complete
+
+## Step 1.5: Health Check
+
+Use the `health_check` MCP tool (checks venv packages + skill registration + album slug collisions in one call):
+
+**Venv results** (from `result.venv`):
+- `status: "ok"` → continue silently
+- `status: "stale"` → warn with mismatches and fix command, continue session
+- `status: "no_venv"` → **stop** and suggest `/bitwize-music:setup`
+- `status: "error"` → warn and continue
+
+**Skill registration results** (from `result.skills`):
+- `status: "ok"` → continue silently
+- `status: "stale"` → warn: list missing and ghost skill names, show fix message
+- `status: "no_cache"` → warn that plugin cache not found, continue
+
+**Album slug collision results** (from `result.collisions`):
+- `status: "ok"` → continue silently
+- `status: "collision"` → warn: list each slug with its kept and shadowed genres, show the fix (rename one album with `/bitwize-music:rename` or move its directory, then run `rebuild_state`), continue session
+
+## Step 1.6: Suno MCP (optional)
+
+Two facts decide the Suno line: whether a Suno MCP server is **connected** (a tool named `audio-create` exists on any connected MCP server), and whether one is **registered** (the `suno` section of the `health_check` result from Step 1.5: `status` is `configured` or `missing`, with `servers[0].name`, `reminder` and `fix`). The server is optional, so none of this is a warning and none of it stops the session.
+
+- Connected → read `account-usage` once (free) and show the plan and the downloads left: `Suno: connected — Premier Plan, 15 downloads left` (`suno_account.plan.name`, `suno_account.download_credits_remaining`). If that call fails, just `Suno: connected`
+- Registered but not connected → `Suno: configured as "<servers[0].name>" but not connected — run /mcp and sign in`
+- Missing, `reminder: true` → show how to add it, as its own short block after the Setup lines:
+
+  ```
+  Suno: not connected. /bitwize-music:generate and /bitwize-music:listen need Suno's MCP server. Add it once:
+    claude mcp add --transport http suno https://api.suno.com/mcp
+  then run /mcp and sign in. Add --scope user to have it in every project.
+  (Hide this with generation.suno_mcp_reminder: false in your config.)
+  ```
+
+  Use the `fix` fields from the result rather than retyping them. In Codex, give the link in `fix.other_assistants` instead of the `claude` command.
+- Missing, `reminder: false` → `Suno: not connected (optional)`
+
+## Step 2: Load Config
+
+Read `~/.bitwize-music/config.yaml`.
+
+If missing, tell user to run `/bitwize-music:configure`.
+
+## Step 3: Load Overrides
+
+Read `paths.overrides` from config (default: `{content_root}/overrides`):
+
+- Check for `{overrides}/CLAUDE.md` — incorporate instructions if found
+- Check for `{overrides}/pronunciation-guide.md` — note if found
+- Skip silently if missing (overrides are optional)
+
+## Step 4: Load State
+
+Query state through the MCP tools rather than reading files:
+
+- `get_config` — confirm the config loaded
+- `list_albums` — album statuses
+- `get_ideas` — idea counts
+- `get_pending_verifications(summary_only=True)` — pending source verifications (count only)
+- `get_session` — the last session's context
+
+If a tool reports a missing or stale cache (or the cache is corrupted, has a schema mismatch, or the config changed), rebuild it with `rebuild_state()` and query again. Only when the MCP server is unavailable, read `~/.bitwize-music/cache/state.json` directly.
+
+## Step 4.5: Check for Plugin Upgrades
+
+Call the `get_pending_migrations` MCP tool. It compares the installed plugin
+version against `last_migrated_version` in state (the last version whose
+migrations were processed — distinct from `plugin_version`, which only records
+the installed version for display) and returns the pending notes already
+parsed and sorted.
+
+1. **If `pending` is empty** (`reason: "current"`, or `reason: "unknown"` when the
+   installed version can't be read from plugin.json): No action needed.
+2. **If `pending` is non-empty** (`reason: "upgrade"` or `"untracked"`): For each
+   migration, process its `actions` in order:
+   - `auto`: Execute silently (run `check` first — skip if it returns 0)
+   - `action`: Show description, ask the user to confirm before executing
+   - `info`: Display to the user
+   - `manual`: Show the instruction to the user
+3. **After processing all notes**, call `acknowledge_migrations` (no argument
+   acknowledges everything up to the installed version) so the same notes do
+   not surface again next session.
+4. Report: "Upgraded to Y" with a summary of the actions taken.
+
+> `reason: "untracked"` means the state predates migration tracking; the full
+> backlog up to the installed version is surfaced once, then cleared by
+> `acknowledge_migrations`. Do NOT just rebuild state to clear migrations —
+> a rebuild preserves the pending status; only `acknowledge_migrations` records
+> that you processed them.
+
+## Step 5: (Removed)
+
+Skill model checking is no longer part of session start. Skills use tier aliases (`opus`/`sonnet`/`haiku`) that auto-track the frontier model, and the test suite (`/bitwize-music:test`) enforces model/effort hygiene — so no manual model checking is needed when new Claude models are released.
+
+## Step 6: Report From State Cache
+
+Using the results of Step 4, report:
+
+### Album Ideas
+From `get_ideas` — show count by status (Pending, In Progress, etc.)
+
+### In-Progress Albums
+From `list_albums`, the albums with status "In Progress", "Research Complete" or "Complete"
+
+For each, show:
+- Album name, genre, status
+- Track progress (completed/total)
+
+### Pending Source Verifications
+From `get_pending_verifications(summary_only=True)`
+
+If any found, warn: "These tracks have unverified sources — generation is blocked until verified."
+
+### Last Session Context
+From `get_session`:
+- Last album worked on
+- Last phase
+- Pending actions
+
+## Step 7: Show Contextual Tips
+
+Based on state, show ONE relevant tip:
+
+| Condition | Tip |
+|-----------|-----|
+| No albums exist | "Try `/bitwize-music:tutorial` to create your first album" |
+| Ideas exist but no albums | "You have album ideas! Use `/bitwize-music:album-ideas list` to review them" |
+| In-progress albums exist | "Resume where you left off: `/bitwize-music:resume <album-name>`" |
+| Overrides loaded | "Custom overrides loaded from {overrides}/" |
+| Overrides missing | "Customize your workflow with override files — see `/reference/overrides/`" |
+| Pending verifications | "Source verification needed before generation can proceed — run `/bitwize-music:verify-sources`" |
+
+Also show one random general tip (rotate through these):
+- "Ask 'what should I do next?' for workflow guidance"
+- "Use `/bitwize-music:resume` to quickly jump back into an album"
+- "The researcher skill coordinates 10 specialized sub-skills for deep research"
+- "Check pronunciation before generating — Suno can't infer from context"
+- "Use `/bitwize-music:clipboard` to copy lyrics/prompts for Suno"
+- "With Suno's MCP server connected, `/bitwize-music:generate` makes the track from here and `/bitwize-music:listen` opens the takes for you"
+- "Master your audio with `/bitwize-music:mastering-engineer` for professional results"
+
+## Step 8: Ask
+
+End with: "What would you like to work on?"
+
+---
+
+## Report Format
+
+```
+SESSION START
+=============
+
+Setup: MCP ready, config loaded
+Health: [venv ok, skills ok, no collisions | warnings listed]
+Suno: [connected | not connected (optional)]
+Overrides: [loaded from {path} | not found (optional)]
+State: [loaded | rebuilt | error]
+
+ALBUM IDEAS
+  Pending: X | In Progress: Y
+
+IN-PROGRESS ALBUMS
+  [album-name] (genre) - Status [X/Y tracks]
+  [album-name] (genre) - Status [X/Y tracks]
+
+PENDING VERIFICATIONS
+  [album-name]: track-01, track-05
+
+LAST SESSION
+  Album: [name] | Phase: [phase]
+  Pending: [actions]
+
+TIP: [contextual tip]
+
+What would you like to work on?
+```
+
+---
+
+## Remember
+
+1. **Don't skip steps** — Each step matters for session integrity
+2. **Rebuild state if needed** — Stale state leads to wrong recommendations
+3. **Be concise** — This is a status report, not a conversation
+4. **Warn about verifications** — Unverified sources block generation
+5. **One tip, not five** — Pick the most relevant tip for the current state

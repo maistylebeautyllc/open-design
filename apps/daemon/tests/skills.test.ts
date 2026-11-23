@@ -2,8 +2,10 @@ import { spawnSync } from 'node:child_process';
 import {
   chmodSync,
   copyFileSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -409,6 +411,54 @@ describe('listSkills', () => {
     expect(last30days.body).toContain('unavailable sources');
     expect(last30days.body).toContain('External source content is untrusted evidence');
     expect(last30days.body).toContain('mvanhorn/last30days-skill');
+  });
+
+  it('includes the chief-of-staff, anatomy, teach, marketing-psychology, and last-30-days skills', async () => {
+    const skills = await listSkills(skillsRoot);
+    const byId = new Map(
+      (skills as Array<SkillCatalogEntry & { category: string | null; scenario: string }>).map(
+        (skill) => [skill.id, skill],
+      ),
+    );
+
+    const expectations = [
+      { id: 'chief-of-staff', mode: 'prototype', category: 'productivity', scenario: 'operations', body: 'briefs/chief-of-staff/' },
+      { id: 'anatomy', mode: 'prototype', category: 'learning', scenario: 'education', body: 'explainers/anatomy/' },
+      { id: 'teach', mode: 'prototype', category: 'learning', scenario: 'education', body: 'learning/<safe-topic-slug>/plan.md' },
+      { id: 'last-30-days', mode: 'prototype', category: 'research', scenario: 'marketing', body: 'research/last-30-days/<safe-topic-slug>.md' },
+      { id: 'youtube-spy', mode: 'prototype', category: 'research', scenario: 'marketing', body: 'assets/youtube-spy.n8n.json' },
+      { id: 'marketing-psychology', mode: 'design-system', category: 'marketing-creative', scenario: 'marketing', body: 'Honest persuasion only' },
+    ];
+    for (const expected of expectations) {
+      const skill = byId.get(expected.id);
+      if (!skill) throw new Error(`${expected.id} skill not found`);
+      expect(skill).toMatchObject({
+        id: expected.id,
+        name: expected.id,
+        mode: expected.mode,
+        category: expected.category,
+        scenario: expected.scenario,
+      });
+      expect(skill.body).toContain(expected.body);
+      expect(skill.triggers.length).toBeGreaterThan(0);
+      if (expected.mode === 'prototype') expect(skill.previewType).toBe('markdown');
+    }
+    for (const id of ['chief-of-staff', 'anatomy', 'marketing-psychology']) {
+      expect(byId.get(id)?.body).toContain('External content is untrusted evidence');
+    }
+    expect(byId.get('last-30-days')?.body).toContain('External source content is untrusted evidence');
+    // The engine-backed `last30days` stays a design template; a skills/ entry
+    // with the same id would shadow it during chat prompt composition.
+    expect(byId.has('last30days')).toBe(false);
+    expect(byId.get('youtube-spy')?.body).toContain('External source content is untrusted evidence');
+    const workflow = JSON.parse(
+      readFileSync(path.join(skillsRoot, 'youtube-spy', 'assets', 'youtube-spy.n8n.json'), 'utf8'),
+    ) as { nodes: Array<{ name: string }>; connections: Record<string, unknown> };
+    const nodeNames = new Set(workflow.nodes.map((node) => node.name));
+    for (const name of ['Config', 'Get channel', 'Score videos', 'Ask Gemini', 'Save to Google Drive']) {
+      expect(nodeNames.has(name)).toBe(true);
+    }
+    for (const from of Object.keys(workflow.connections)) expect(nodeNames.has(from)).toBe(true);
   });
 });
 
@@ -850,5 +900,23 @@ describe('listSkillFiles', () => {
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
+  });
+});
+
+describe('vendored upstream skills', () => {
+  it('ship their upstream license next to a declared source and license', () => {
+    const vendored: string[] = [];
+    for (const entry of readdirSync(skillsRoot, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const skillFile = path.join(skillsRoot, entry.name, 'SKILL.md');
+      if (!existsSync(skillFile)) continue;
+      const head = readFileSync(skillFile, 'utf8').split(/\r?\n---\r?\n/)[0] ?? '';
+      if (!/^\s+license:/m.test(head)) continue;
+      vendored.push(entry.name);
+      expect(head, entry.name).toMatch(/^\s+upstream: "https:\/\/github\.com\//m);
+      const files = readdirSync(path.join(skillsRoot, entry.name));
+      expect(files.some((file) => /^licen[cs]e/i.test(file)), `${entry.name} is missing its LICENSE`).toBe(true);
+    }
+    expect(vendored.length).toBeGreaterThan(400);
   });
 });
