@@ -58,6 +58,16 @@ apps/desktop/vendor/dom-to-pptx/dom-to-pptx.bundle.js
 !.claude/skills/
 .claude/skills/*
 !.claude/skills/od-contribute/
+!.claude/skills/chief-of-staff/
+!.claude/skills/teach/
+!.claude/skills/anatomy/
+!.claude/skills/last-30-days/
+!.claude/skills/youtube-spy/
+!.claude/skills/marketing-psychology/
+!.claude/skills/social/
+!.claude/skills/offers/
+!.claude/skills/referrals/
+!.claude/skills/sms/
 !.claude/commands/
 .claude/commands/*
 !.claude/commands/od-contribute.md
