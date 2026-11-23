@@ -41,7 +41,7 @@ What to edit for a new version:
 
 After building, copy the new mp4 + poster into `videos/` with a dated name and add a row to the table above.
 Pack edited source back with
-`tar czf project.tar.gz TREATMENT.md CREDITS build.sh film.js index.html render.mjs score.py engine fonts`.
+`tar czf project.tar.gz TREATMENT.md CREDITS build.sh build_holidays.sh film.js index.html render.mjs score.py engine fonts`.
 
 ## Holiday editions
 
