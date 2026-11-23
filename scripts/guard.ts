@@ -170,6 +170,33 @@ const residualAllowedPathPrefixes = [
   // Node-run skill utilities executed from user workspaces via explicit script
   // paths, and stay as `.mjs` to preserve the upstream skill packaging.
   "skills/web-clone/scripts/",
+  // Vendored upstream skills imported in bulk from permissively licensed
+  // repositories (each folder carries its LICENSE and `od.upstream`). Their
+  // helper scripts and snippets stay as upstream shipped them.
+  "skills/algorithmic-art/",
+  "skills/brainstorming/",
+  "skills/brand/",
+  "skills/browse/",
+  "skills/chatgpt-apps/",
+  "skills/claude-api/",
+  "skills/conversion-tracking/",
+  "skills/design-html/",
+  "skills/design-review/",
+  "skills/design-system/",
+  "skills/frontend-slides/",
+  "skills/impeccable/",
+  "skills/openai-docs/",
+  "skills/openmotion-design-remix/",
+  "skills/openmotion-design-styles/",
+  "skills/openmotion-growth-teardown/",
+  "skills/openmotion-recreate/",
+  "skills/openmotion-sale-carousel/",
+  "skills/openmotion-sale-countdown/",
+  "skills/openmotion-sale-promo/",
+  "skills/openmotion-template-to-video/",
+  "skills/pptx/",
+  "skills/reverse-engineer-marketing/",
+  "skills/writing-skills/",
   // Vendored upstream Last30Days runtime helper used by the engine (design template).
   "design-templates/last30days/scripts/lib/vendor/",
   // Vendored upstream html-ppt runtime assets (lewislulu/html-ppt-skill, design template).

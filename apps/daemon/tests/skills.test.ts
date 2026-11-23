@@ -2,8 +2,10 @@ import { spawnSync } from 'node:child_process';
 import {
   chmodSync,
   copyFileSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -898,5 +900,23 @@ describe('listSkillFiles', () => {
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
+  });
+});
+
+describe('vendored upstream skills', () => {
+  it('ship their upstream license next to a declared source and license', () => {
+    const vendored: string[] = [];
+    for (const entry of readdirSync(skillsRoot, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const skillFile = path.join(skillsRoot, entry.name, 'SKILL.md');
+      if (!existsSync(skillFile)) continue;
+      const head = readFileSync(skillFile, 'utf8').split(/\r?\n---\r?\n/)[0] ?? '';
+      if (!/^\s+license:/m.test(head)) continue;
+      vendored.push(entry.name);
+      expect(head, entry.name).toMatch(/^\s+upstream: "https:\/\/github\.com\//m);
+      const files = readdirSync(path.join(skillsRoot, entry.name));
+      expect(files.some((file) => /^licen[cs]e/i.test(file)), `${entry.name} is missing its LICENSE`).toBe(true);
+    }
+    expect(vendored.length).toBeGreaterThan(400);
   });
 });

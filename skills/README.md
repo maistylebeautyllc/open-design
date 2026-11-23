@@ -12,4 +12,4 @@ For a rendering template, follow [`docs/skills-contributing.md`](../docs/skills-
 
 ## License
 
-Skills in this directory are Apache-2.0 unless their own `LICENSE` says otherwise. [`web-clone/`](web-clone/) is adapted from [Jane-xiaoer/claude-skill-web-clone](https://github.com/Jane-xiaoer/claude-skill-web-clone). The MIT-licensed `guizang-ppt` rendering template lives under [`design-templates/guizang-ppt/`](../design-templates/guizang-ppt/).
+Skills in this directory are Apache-2.0 unless their own `LICENSE` says otherwise. Skills vendored from upstream repositories declare `od.upstream` and `od.license` in their frontmatter and ship the upstream `LICENSE` file in their folder; only their frontmatter was normalized for OpenDesign. Upstream repositories without a permissive license, and skills that only work with a paid third-party API, were not vendored. [`web-clone/`](web-clone/) is adapted from [Jane-xiaoer/claude-skill-web-clone](https://github.com/Jane-xiaoer/claude-skill-web-clone). The MIT-licensed `guizang-ppt` rendering template lives under [`design-templates/guizang-ppt/`](../design-templates/guizang-ppt/).
