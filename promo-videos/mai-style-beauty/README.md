@@ -12,6 +12,9 @@ JavaScript doesn't trip the repo's `pnpm guard` TypeScript-only check.
 | File | What |
 |---|---|
 | `videos/2026-11-main-promo.mp4` | Main promo: five services behind five Art Deco doors, bulb marquee, "Book your appointment" |
+| `videos/2026-11-thanksgiving.mp4` | Thanksgiving 2026: amber, falling leaves, "Happy Thanksgiving · Grateful for you" |
+| `videos/2026-11-blackfriday.mp4` | Black Friday 2026: red on black, gold confetti, "Black Friday bookings open" |
+| `videos/2026-11-hmong.mp4` | Hmong New Year 2026: magenta + indigo, silver coins, "Nyob Zoo Xyoo Tshiab" |
 
 ## Services shown
 
@@ -41,6 +44,10 @@ Pack edited source back with
 `tar czf project.tar.gz TREATMENT.md CREDITS build.sh film.js index.html render.mjs score.py engine fonts`.
 
 ## Holiday editions
+
+Editions live in `EDITIONS` at the top of `film.js` (accent colour, background tones, opening and closing
+wording, particle effect: `leaves`, `confetti` or `coins`). Add a new key there, then
+`sh build_holidays.sh <key>` → `mai-style-beauty-<key>.mp4`. Render stills with `ED=<key> node render.mjs stills 2.8 28`.
 
 The owner wants a holiday edition for every holiday: US/world holidays, cultural holidays (including
 **Hmong New Year**, Lunar New Year, Eid, Diwali, Juneteenth) and beauty seasons (prom, weddings,
