@@ -58,6 +58,9 @@ apps/desktop/vendor/dom-to-pptx/dom-to-pptx.bundle.js
 !.claude/skills/
 .claude/skills/*
 !.claude/skills/od-contribute/
+# Fork-local: shared Claude Code plugin list and the vendored Cloudflare security-audit skill.
+!.claude/settings.json
+!.claude/skills/security-audit/
 !.claude/commands/
 .claude/commands/*
 !.claude/commands/od-contribute.md
